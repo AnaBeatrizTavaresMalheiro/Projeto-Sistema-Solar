@@ -130,26 +130,64 @@ function criarBotaoCamera() {
 
 
 // Elementos ThreeJs
-// Criar Elemento (Sol e Planetas)
 function criarElementos(nome, raio, hsegmentos, vsegmentos, posicao, textura, cor_fonte) {
+  // Usando MeshLambertMaterial para que a luz afete o material, mas sem alterar muito a cor original
   const sphereGeometry = new THREE.SphereGeometry(raio, hsegmentos, vsegmentos);
-  const sphereMaterial = new THREE.MeshBasicMaterial({ map: textureLoader.load(textura) });
+  
+  // Material com textura, permitindo sombras, mas mantendo a cor
+  const sphereMaterial = new THREE.MeshLambertMaterial({
+    map: textureLoader.load(textura), // Mantém a textura aplicada no material
+    emissive: 0x000000, // Não emite luz própria, mantendo a cor original
+    color: 0xffffff, // Cor base que não muda
+    emissiveIntensity: 0.0, // Nenhuma emissão de luz
+    roughness: 0.5,  // Suaviza o brilho, mas sem mudanças nas cores
+    metalness: 0.2   // Pouco metalizado, evitando alteração de cor
+  });
+
   const sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
   sphereMesh.position.set(...posicao);
-  sphereMesh.userData = { distance: posicao[0] }; 
+  sphereMesh.userData = { distance: posicao[0] };
+  sphereMesh.castShadow = true; // A esfera projeta sombras
+  sphereMesh.receiveShadow = true; // A esfera recebe sombras
   scene.add(sphereMesh);
 
   // Criar Label
   const label = new CSS2DObject(criarLabel(nome, cor_fonte));
-  label.position.set(0, -raio - 0.1, 0); 
-  sphereMesh.userData.label = label; 
+  label.position.set(0, -raio - 0.1, 0);
+  sphereMesh.userData.label = label;
   scene.add(label);
 
   return sphereMesh;
 }
 
-// Criar Sol
-const sol = criarElementos('Sol', 0.8, 32, 32, [0, 0, 0], 'texturas/sol.jpg', 'black');
+// Criar luz pontual (Sol)
+  const light = new THREE.PointLight(0xffffff, 250, 2000); // Luz amarela
+light.position.set(0, 0, 0); // Posição do Sol
+light.castShadow = true; // A luz também projeta sombra
+
+// Configurar o mapa de sombras da luz
+light.shadow.mapSize.width = 1024; // Resolução do mapa de sombras
+light.shadow.mapSize.height = 1024;
+light.shadow.camera.near = 0.1; // Distância mínima da câmera para sombras
+light.shadow.camera.far = 2000; // Distância máxima ajustada ao alcance da luz
+scene.add(light);
+
+// Criar uma esfera para representar o Sol (não afetada pela luz, mas com emissão)
+const solGeometry = new THREE.SphereGeometry(1, 32, 32); // Esfera de raio 1
+const solMaterial = new THREE.MeshStandardMaterial({
+  map: textureLoader.load('texturas/sol.jpg'),
+  emissive: 0xffaa00, // Emissão de luz amarela para o Sol
+  emissiveIntensity: 1, // Intensidade do brilho do Sol
+  color: 0xffcc00, // Cor do Sol (não afetada pela luz)
+});
+
+const sol = new THREE.Mesh(solGeometry, solMaterial);
+sol.position.set(0, 0, 0); // Mesma posição da luz
+sol.castShadow = true; // O Sol também projeta sombras
+sol.receiveShadow = false; // O Sol não recebe sombras
+scene.add(sol);
+
+
 
 
 
@@ -210,7 +248,6 @@ function animate() {
 
   // Interpole a rotação da câmera para a rotação desejada
   camera.rotation.y += (rotacaoDesejadaY - camera.rotation.y) * rotacaoVelocidade;
-
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera); // Renderiza labels
 }
@@ -314,6 +351,8 @@ document.addEventListener('keydown', function(event) {
     }}
 });
 }
+
+
 
 animate();
 movimentarCamera();
